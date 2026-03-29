@@ -1,0 +1,15 @@
+{
+  "name": "wario-dashboard",
+  "version": "1.0.0",
+  "description": "Local dashboard for the Wario Life Agent.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.58.2"
+  }
+}
