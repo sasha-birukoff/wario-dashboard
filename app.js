@@ -50,7 +50,8 @@ function render(d) {
   cronEl.innerHTML = cronJobs.map(j => {
     const ok = j.state?.lastRunStatus === 'ok';
     const icon = ok ? '✅' : '❌';
-    const when = new Date((j.state?.nextRunAtMs||0)/1000).toLocaleDateString();
+    const nextMs = j.state?.nextRunAtMs || 0;
+    const when = nextMs > 0 ? new Date(nextMs/1000).toLocaleDateString() : '—';
     return `<div class="list-item">
       <span class="status-icon">${icon}</span>
       <span>${j.name}</span>

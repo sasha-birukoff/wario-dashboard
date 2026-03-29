@@ -14,6 +14,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/status":
             self.handle_api_status()
+        elif self.path == "/api/todos":
+            self.handle_api_todos()
+        elif self.path == "/api/queue":
+            self.handle_api_queue()
+        elif self.path.startswith("/api/run?"):
+            self.handle_api_run()
         else:
             super().do_GET()
 
@@ -56,8 +62,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if m:
                     todos.append(m.group(1).strip())
             self.send_response(200); self.end_headers(); self.wfile.write(json.dumps(todos).encode())
-        except Exception as e:
+        except:
             self.send_response(200); self.end_headers(); self.wfile.write(json.dumps([]).encode())
+
+    def handle_api_queue(self):
+        queue_file = WORKSPACE / "dispatch" / "upgrade_queue.txt"
+        if not queue_file.exists():
+            self.send_response(200); self.end_headers(); self.wfile.write(json.dumps([]).encode()); return
+        items = []
+        for line in queue_file.read_text().splitlines():
+            prefix = line.split()[0] if line.strip() else ""
+            if prefix in ("TODO", "DOING", "DONE"):
+                title = line[len(prefix):].strip()
+                items.append({"status": prefix, "title": title})
+        self.send_response(200); self.end_headers(); self.wfile.write(json.dumps(items).encode())
 
     def get_status(self):
         try:
