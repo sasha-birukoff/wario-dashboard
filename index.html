@@ -19,25 +19,30 @@
   <main class="container">
     <!-- Stats row -->
     <section class="stats-row" id="statsRow">
-      <div class="stat-card">
+      <div class="stat-card" title="Cron jobs OK / total; source: openclaw cron list">
         <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
         <div class="stat-label">Cron Health</div>
         <div class="stat-value" id="statCron">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" title="Remaining TODO items in dispatcher queue; source: dispatch/upgrade_queue.txt">
         <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2z"/><path d="M9 17a2 2 0 012-2h2a2 2 0 012 2v1a2 2 0 01-2 2H9a2 2 0 01-2-2v-1z"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
         <div class="stat-label">Dispatcher TODO</div>
         <div class="stat-value" id="statQueue">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" title="Today's git commits in workspace; source: git log -1">
         <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a2 2 0 01-2 2h-6l-4 4V8z"/><path d="M12 16h.01"/></svg>
         <div class="stat-label">Git Commits Today</div>
         <div class="stat-value" id="statCommits">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" title="Daily memory files created; source: workspace/memory/*.md count">
         <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/></svg>
         <div class="stat-label">Memory Files</div>
         <div class="stat-value" id="statMemory">–</div>
+      </div>
+      <div class="stat-card" title="Overall system health score (0-100); composite of cron health, queue load, memory trend">
+        <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <div class="stat-label">Health Score</div>
+        <div class="stat-value" id="statHealth">–</div>
       </div>
     </section>
 
@@ -75,6 +80,22 @@
       <h2>System Logs <button id="closeLogs" style="float:right;cursor:pointer;">−</button></h2>
       <div id="logsContent" class="list-content logs-viewer">Loading…</div>
     </section>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2>Keyboard Shortcuts</h2>
+        <ul>
+          <li><kbd>T</kbd> Cycle theme</li>
+          <li><kbd>R</kbd> Refresh data</li>
+          <li><kbd>?</kbd> Toggle this help</li>
+          <li><kbd>A</kbd> Add new task (future)</li>
+          <li><kbd>J/K</kbd> Navigate queue items (future)</li>
+          <li><kbd>Space</kbd> Toggle current task DONE (future)</li>
+        </ul>
+        <button onclick="closeHelp()">Close</button>
+      </div>
+    </div>
   </main>
 
   <footer>

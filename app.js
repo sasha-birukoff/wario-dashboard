@@ -1,15 +1,90 @@
 const API = '/api/status';
 
-const themeBtn = document.getElementById('themeToggle');
-const saved = localStorage.getItem('theme');
-if (saved) document.documentElement.setAttribute('data-theme', saved);
-themeBtn.addEventListener('click', () => {
-  const cur = document.documentElement.getAttribute('data-theme') || 'light';
-  const nxt = cur === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', nxt);
-  localStorage.setItem('theme', nxt);
+// Theme handling
+const themes = ['dark', 'light', 'solarized-dark', 'nord', 'catppuccin'];
+let currentThemeIdx = themes.indexOf(localStorage.getItem('theme')) || 0;
+function applyTheme(idx) {
+  currentThemeIdx = idx % themes.length;
+  const theme = themes[currentThemeIdx];
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  if (document.getElementById('themeToggle')) {
+    document.getElementById('themeToggle').textContent = theme === 'dark' ? '🌙' : '☀️';
+  }
+}
+applyTheme(currentThemeIdx);
+document.getElementById('themeToggle')?.addEventListener('click', () => applyTheme(currentThemeIdx + 1));
+
+// Help modal
+function openHelp() { document.getElementById('helpModal').style.display = 'flex'; }
+function closeHelp() { document.getElementById('helpModal').style.display = 'none'; }
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === '?') { e.preventDefault(); openHelp(); }
+  if (e.key === 'r' || e.key === 'R') load();
+  if (e.key === 't' || e.key === 'T') applyTheme(currentThemeIdx + 1);
+  if (e.key === 'Escape') closeHelp();
 });
 
+// Toggle logs visibility
+function toggleLogs() {
+  const panel = document.getElementById('logsPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+document.getElementById('closeLogs')?.addEventListener('click', () => {
+  document.getElementById('logsPanel').style.display = 'none';
+});
+
+// Run command via API
+function runCmd(cmd) {
+  fetch(`/api/run?cmd=${cmd}`).then(r => r.json()).then(d => {
+    if (d.status === 'started') alert(`${cmd} started`);
+    else alert(`Error: ${d.error||'unknown'}`);
+  });
+}
+
+// Confetti (lightweight canvas)
+let confettiCanvas = null, confettiCtx = null;
+function launchConfetti() {
+  if (!confettiCanvas) {
+    confettiCanvas = document.createElement('canvas');
+    confettiCanvas.id = 'confetti-canvas';
+    document.body.appendChild(confettiCanvas);
+    confettiCtx = confettiCanvas.getContext('2d');
+    confettiCanvas.width = window.innerWidth;
+    confettiCanvas.height = window.innerHeight;
+  }
+  const pieces = [];
+  const colors = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6'];
+  for (let i = 0; i < 150; i++) {
+    pieces.push({
+      x: Math.random() * confettiCanvas.width,
+      y: Math.random() * confettiCanvas.height - confettiCanvas.height,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      size: Math.random()*8+4,
+      speed: Math.random()*3+2,
+      wobble: Math.random()*2-1
+    });
+  }
+  let anim = () => {
+    confettiCtx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+    let active = false;
+    pieces.forEach(p => {
+      p.y += p.speed;
+      p.x += p.wobble;
+      if (p.y < confettiCanvas.height) active = true;
+      confettiCtx.fillStyle = p.color;
+      confettiCtx.fillRect(p.x, p.y, p.size, p.size);
+    });
+    if (active) requestAnimationFrame(anim);
+    else confettiCanvas.remove();
+  };
+  anim();
+}
+
+// Data loading
 async function load() {
   try {
     const res = await fetch(API);
@@ -30,9 +105,10 @@ function render(d) {
   document.getElementById('statCron').textContent = `${okCount}/${cronJobs.length}`;
   document.getElementById('statQueue').textContent = d.dispatcher_queue?.todo || 0;
   document.getElementById('statMemory').textContent = d.memory_daily_files || 0;
-  document.getElementById('statCommits').textContent = d.git_last_commit ? '1' : '0'; // simplistic
+  document.getElementById('statCommits').textContent = d.git_last_commit ? '1' : '0';
+  document.getElementById('statHealth').textContent = d.health_score !== undefined ? d.health_score + '%' : '—';
 
-  // Dispatcher queue list (fetch full queue)
+  // Dispatcher queue list
   fetch('/api/queue')
     .then(r => r.json())
     .then(items => {
@@ -41,20 +117,20 @@ function render(d) {
       qEl.innerHTML = items.map(it => {
         let icon = '';
         let style = '';
-        let done = it.status === 'DONE' ? 'true' : 'false';
-        if (it.status === 'TODO') {
-          icon = '○'; style = 'color:var(--muted)';
-        } else if (it.status === 'DOING') {
-          icon = '◐'; style = 'color:var(--accent)';
-        } else { // DONE
-          icon = '✓'; style = 'color:var(--success)';
-        }
-        return `<div class="list-item" done="${done}"><span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span></div>`;
+        let done = it.status === 'DONE';
+        if (it.status === 'TODO') { icon = '○'; style = 'color:var(--muted)'; }
+        else if (it.status === 'DOING') { icon = '◐'; style = 'color:var(--accent)'; }
+        else { icon = '✓'; style = 'color:var(--success)'; }
+        return `<div class="list-item" ${done ? 'done="true"' : ''}><span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span></div>`;
       }).join('');
+      // Confetti if all DONE
+      if (items.length > 0 && items.every(it => it.status === 'DONE') && localStorage.getItem('confettiEnabled') !== 'false') {
+        launchConfetti();
+      }
     })
     .catch(() => { document.getElementById('queueContent').textContent = 'Failed to load queue.'; });
 
-  // Cron health simple list
+  // Cron health list
   const cronEl = document.getElementById('cronContent');
   cronEl.innerHTML = cronJobs.map(j => {
     const ok = j.state?.lastRunStatus === 'ok';
@@ -68,7 +144,7 @@ function render(d) {
     </div>`;
   }).join('') || '<p>No cron jobs</p>';
 
-  // To‑Do: read latest memory file and extract [todo] bullets
+  // To-Do list from MEMORY
   const todoEl = document.getElementById('todoContent');
   fetch('/api/todos')
     .then(r => r.json())
@@ -90,22 +166,6 @@ function render(d) {
     }).join('\n');
     logsEl.scrollTop = logsEl.scrollHeight;
   }
-}
-
-function toggleLogs() {
-  const panel = document.getElementById('logsPanel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
-
-document.getElementById('closeLogs')?.addEventListener('click', () => {
-  document.getElementById('logsPanel').style.display = 'none';
-});
-
-function runCmd(cmd) {
-  fetch(`/api/run?cmd=${cmd}`).then(r => r.json()).then(d => {
-    if (d.status === 'started') alert(`${cmd} started`);
-    else alert(`Error: ${d.error||'unknown'}`);
-  });
 }
 
 setInterval(load, 60000);

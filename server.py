@@ -109,13 +109,30 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         mem_dir = WORKSPACE / "memory"
         mem_files = len(list(mem_dir.glob("*.md"))) if mem_dir.exists() else 0
 
+        # Compute health score (0-100)
+        total_jobs = len(cron.get("jobs", []))
+        ok_jobs = len([j for j in cron.get("jobs", []) if j.get("state", {}).get("lastRunStatus") == "ok"])
+        cron_health = (ok_jobs / total_jobs * 100) if total_jobs else 0
+        # TODO ratio: lower is better; health penalty if >10
+        todo_ratio = queue["todo"] / max(queue["total"], 1)
+        queue_health = max(0, 100 - (todo_ratio * 100))
+        # Memory health: more files is good, but not excessive; consider 3+ healthy
+        mem_health = min(100, mem_files * 33)
+        # Weighted composite
+        health_score = int(0.4*cron_health + 0.4*queue_health + 0.2*mem_health)
+        health_score = max(0, min(100, health_score))
+
         return {
             "generated": datetime.datetime.now().isoformat(),
             "cron_jobs": cron.get("jobs", []),
             "dispatcher_queue": queue,
             "logs": logs,
             "git_last_commit": last_commit,
-            "memory_daily_files": mem_files
+            "memory_daily_files": mem_files,
+            "health_score": health_score,
+            "cron_health_pct": cron_health,
+            "queue_health_pct": queue_health,
+            "mem_health_pct": mem_health
         }
 
 if __name__ == "__main__":
