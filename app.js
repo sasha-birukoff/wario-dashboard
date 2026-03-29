@@ -2,15 +2,15 @@ const API = '/api/status';
 
 // Theme handling
 const themes = ['dark', 'light', 'solarized-dark', 'nord', 'catppuccin'];
-let currentThemeIdx = themes.indexOf(localStorage.getItem('theme')) || 0;
+let currentThemeIdx = themes.indexOf(localStorage.getItem('theme'));
+if (currentThemeIdx === -1) currentThemeIdx = 0;
 function applyTheme(idx) {
   currentThemeIdx = idx % themes.length;
   const theme = themes[currentThemeIdx];
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
-  if (document.getElementById('themeToggle')) {
-    document.getElementById('themeToggle').textContent = theme === 'dark' ? '🌙' : '☀️';
-  }
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
 }
 applyTheme(currentThemeIdx);
 document.getElementById('themeToggle')?.addEventListener('click', () => applyTheme(currentThemeIdx + 1));
@@ -45,9 +45,86 @@ function runCmd(cmd) {
   });
 }
 
-// Confetti (lightweight canvas)
+// Complete all TODOs
+function completeAll() {
+  if (!confirm('Mark all TODOs as DONE?')) return;
+  fetch('/api/queue/complete_all', {method: 'POST'})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        loadQueue();
+        launchConfetti();
+      } else {
+        alert('Failed to complete all');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Error completing all');
+    });
+}
+
+// Escape HTML for safe attribute insertion
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Render queue with checkboxes
+function renderQueue(items) {
+  const qEl = document.getElementById('queueContent');
+  if (items.length === 0) {
+    qEl.textContent = 'No queue items.';
+    return;
+  }
+  qEl.innerHTML = items.map(it => {
+    const isDone = it.status === 'DONE';
+    const checkbox = `<input type="checkbox" class="queue-check" data-title="${escapeHtml(it.title)}" ${isDone ? 'checked' : ''}>`;
+    let icon = '';
+    let style = '';
+    if (it.status === 'TODO') {
+      icon = '○'; style = 'color:var(--muted)';
+    } else if (it.status === 'DOING') {
+      icon = '◐'; style = 'color:var(--accent)';
+    } else {
+      icon = '✓'; style = 'color:var(--success)';
+    }
+    const doneAttr = isDone ? 'done="true"' : '';
+    return `<div class="list-item" ${doneAttr}>${checkbox}<span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span></div>`;
+  }).join('');
+
+  // Attach change listeners to checkboxes
+  document.querySelectorAll('#queueContent .queue-check').forEach(cb => {
+    cb.addEventListener('change', async (e) => {
+      const title = e.target.dataset.title;
+      const newStatus = e.target.checked ? 'DONE' : 'TODO';
+      try {
+        await fetch('/api/queue/update', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({title, newStatus})
+        });
+        reloadQueue();
+      } catch (err) {
+        console.error(err);
+        e.target.checked = !e.target.checked; // revert
+      }
+    });
+  });
+}
+
+function loadQueue() {
+  fetch('/api/queue')
+    .then(r => r.json())
+    .then(items => renderQueue(items))
+    .catch(() => { document.getElementById('queueContent').textContent = 'Failed to load queue.'; });
+}
+
+// Confetti
 let confettiCanvas = null, confettiCtx = null;
 function launchConfetti() {
+  if (localStorage.getItem('confettiEnabled') === 'false') return;
   if (!confettiCanvas) {
     confettiCanvas = document.createElement('canvas');
     confettiCanvas.id = 'confetti-canvas';
@@ -84,22 +161,24 @@ function launchConfetti() {
   anim();
 }
 
-// Data loading
+// Load all data
 async function load() {
   try {
     const res = await fetch(API);
     const d = await res.json();
-    render(d);
+    renderStatus(d);
+    loadQueue();
+    renderCron(d.cron_jobs || []);
+    renderTodos(d);
+    renderLogs(d);
   } catch (e) {
     console.error(e);
     document.querySelectorAll('.list-content').forEach(el => el.textContent = 'Failed to load');
   }
 }
 
-function render(d) {
+function renderStatus(d) {
   document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-
-  // Stats
   const cronJobs = d.cron_jobs || [];
   const okCount = cronJobs.filter(j => j.state?.lastRunStatus === 'ok').length;
   document.getElementById('statCron').textContent = `${okCount}/${cronJobs.length}`;
@@ -107,44 +186,26 @@ function render(d) {
   document.getElementById('statMemory').textContent = d.memory_daily_files || 0;
   document.getElementById('statCommits').textContent = d.git_last_commit ? '1' : '0';
   document.getElementById('statHealth').textContent = d.health_score !== undefined ? d.health_score + '%' : '—';
+}
 
-  // Dispatcher queue list
-  fetch('/api/queue')
-    .then(r => r.json())
-    .then(items => {
-      const qEl = document.getElementById('queueContent');
-      if (items.length === 0) qEl.textContent = 'No queue items.';
-      qEl.innerHTML = items.map(it => {
-        let icon = '';
-        let style = '';
-        let done = it.status === 'DONE';
-        if (it.status === 'TODO') { icon = '○'; style = 'color:var(--muted)'; }
-        else if (it.status === 'DOING') { icon = '◐'; style = 'color:var(--accent)'; }
-        else { icon = '✓'; style = 'color:var(--success)'; }
-        return `<div class="list-item" ${done ? 'done="true"' : ''}><span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span></div>`;
-      }).join('');
-      // Confetti if all DONE
-      if (items.length > 0 && items.every(it => it.status === 'DONE') && localStorage.getItem('confettiEnabled') !== 'false') {
-        launchConfetti();
-      }
-    })
-    .catch(() => { document.getElementById('queueContent').textContent = 'Failed to load queue.'; });
-
-  // Cron health list
+function renderCron(jobs) {
   const cronEl = document.getElementById('cronContent');
-  cronEl.innerHTML = cronJobs.map(j => {
+  cronEl.innerHTML = jobs.map(j => {
     const ok = j.state?.lastRunStatus === 'ok';
     const icon = ok ? '✅' : '❌';
-    const nextMs = j.state?.nextRunAtMs || 0;
-    const when = nextMs > 0 ? new Date(nextMs/1000).toLocaleDateString() : '—';
+    let ts = Number(j.state?.nextRunAtMs) || 0;
+    // Detect if timestamp is in seconds (10-digit) and convert to ms
+    if (ts > 1e9 && ts < 1e12) ts *= 1000;
+    const when = ts > 0 ? new Date(ts).toLocaleDateString() : '—';
     return `<div class="list-item">
       <span class="status-icon">${icon}</span>
       <span>${j.name}</span>
       <span class="time-ago">next ${when}</span>
     </div>`;
   }).join('') || '<p>No cron jobs</p>';
+}
 
-  // To-Do list from MEMORY
+function renderTodos(d) {
   const todoEl = document.getElementById('todoContent');
   fetch('/api/todos')
     .then(r => r.json())
@@ -153,8 +214,9 @@ function render(d) {
       todoEl.innerHTML = todos.map(t => `<div class="list-item">• ${t}</div>`).join('');
     })
     .catch(() => { todoEl.textContent = 'Unable to load todos.'; });
+}
 
-  // Logs viewer
+function renderLogs(d) {
   const logsEl = document.getElementById('logsContent');
   if (logsEl) {
     const allLines = [...(d.logs?.dispatcher || []), ...[].concat(d.logs?.cron_errors || [])];

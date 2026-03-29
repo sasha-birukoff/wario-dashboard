@@ -135,6 +135,64 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             "mem_health_pct": mem_health
         }
 
+    def do_POST(self):
+        if self.path == '/api/queue/update':
+            self.handle_queue_update()
+        elif self.path == '/api/queue/complete_all':
+            self.handle_complete_all()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def handle_queue_update(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length)
+        try:
+            data = json.loads(post_data)
+            title = data.get('title')
+            new_status = data.get('newStatus')
+            if new_status not in ('TODO','DOING','DONE'):
+                self.send_response(400); self.end_headers(); return
+            queue_file = WORKSPACE / "dispatch" / "upgrade_queue.txt"
+            if not queue_file.exists():
+                self.send_response(404); self.end_headers(); return
+            lines = queue_file.read_text().splitlines()
+            new_lines = []
+            changed = False
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith(('TODO','DOING','DONE')):
+                    prefix = stripped.split()[0]
+                    rest = stripped[len(prefix):].strip()
+                    if rest == title:
+                        new_lines.append(f"{new_status} {rest}")
+                        changed = True
+                    else:
+                        new_lines.append(line)
+                else:
+                    new_lines.append(line)
+            if changed:
+                queue_file.write_text('\n'.join(new_lines) + '\n')
+            self.send_response(200); self.end_headers(); self.wfile.write(b'{"ok":true}')
+        except Exception as e:
+            self.send_response(500); self.end_headers(); self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def handle_complete_all(self):
+        queue_file = WORKSPACE / "dispatch" / "upgrade_queue.txt"
+        if not queue_file.exists():
+            self.send_response(404); self.end_headers(); return
+        lines = queue_file.read_text().splitlines()
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith('TODO'):
+                rest = stripped[4:].strip()
+                new_lines.append(f"DONE {rest}")
+            else:
+                new_lines.append(line)
+        queue_file.write_text('\n'.join(new_lines) + '\n')
+        self.send_response(200); self.end_headers(); self.wfile.write(b'{"ok":true}')
+
 if __name__ == "__main__":
     print(f"Wario Dashboard → http://localhost:{PORT}")
     print(f"Serving files from: {BASE_DIR}")
