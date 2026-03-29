@@ -20,18 +20,22 @@
     <!-- Stats row -->
     <section class="stats-row" id="statsRow">
       <div class="stat-card">
+        <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
         <div class="stat-label">Cron Health</div>
         <div class="stat-value" id="statCron">–</div>
       </div>
       <div class="stat-card">
+        <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2z"/><path d="M9 17a2 2 0 012-2h2a2 2 0 012 2v1a2 2 0 01-2 2H9a2 2 0 01-2-2v-1z"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
         <div class="stat-label">Dispatcher TODO</div>
         <div class="stat-value" id="statQueue">–</div>
       </div>
       <div class="stat-card">
+        <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a2 2 0 01-2 2h-6l-4 4V8z"/><path d="M12 16h.01"/></svg>
         <div class="stat-label">Git Commits Today</div>
         <div class="stat-value" id="statCommits">–</div>
       </div>
       <div class="stat-card">
+        <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/></svg>
         <div class="stat-label">Memory Files</div>
         <div class="stat-value" id="statMemory">–</div>
       </div>
@@ -42,7 +46,7 @@
       <button onclick="runCmd('memory_sync')">Sync Memory</button>
       <button onclick="runCmd('daily_digest')">Send Daily Digest</button>
       <button onclick="runCmd('restart_dispatcher')">Restart Dispatcher</button>
-      <button onclick="openLogs()">Open Logs</button>
+      <button onclick="toggleLogs()">Show Logs</button>
     </section>
 
     <!-- Two-column content -->
@@ -64,6 +68,12 @@
     <section class="panel">
       <h2>To‑Do List</h2>
       <div id="todoContent" class="list-content">Loading…</div>
+    </section>
+
+    <!-- Logs viewer (collapsible) -->
+    <section class="panel" id="logsPanel" style="display:none;">
+      <h2>System Logs <button id="closeLogs" style="float:right;cursor:pointer;">−</button></h2>
+      <div id="logsContent" class="list-content logs-viewer">Loading…</div>
     </section>
   </main>
 

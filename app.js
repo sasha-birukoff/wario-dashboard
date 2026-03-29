@@ -39,8 +39,17 @@ function render(d) {
       const qEl = document.getElementById('queueContent');
       if (items.length === 0) qEl.textContent = 'No queue items.';
       qEl.innerHTML = items.map(it => {
-        const color = it.status === 'TODO' ? 'var(--muted)' : it.status === 'DOING' ? 'var(--accent)' : 'var(--success)';
-        return `<div class="list-item"><span class="status-icon" style="color:${color}">•</span><span>${it.title}</span></div>`;
+        let icon = '';
+        let style = '';
+        let done = it.status === 'DONE' ? 'true' : 'false';
+        if (it.status === 'TODO') {
+          icon = '○'; style = 'color:var(--muted)';
+        } else if (it.status === 'DOING') {
+          icon = '◐'; style = 'color:var(--accent)';
+        } else { // DONE
+          icon = '✓'; style = 'color:var(--success)';
+        }
+        return `<div class="list-item" done="${done}"><span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span></div>`;
       }).join('');
     })
     .catch(() => { document.getElementById('queueContent').textContent = 'Failed to load queue.'; });
@@ -61,24 +70,42 @@ function render(d) {
 
   // To‑Do: read latest memory file and extract [todo] bullets
   const todoEl = document.getElementById('todoContent');
-  fetch('/api/todos')  // we'll add this endpoint next
+  fetch('/api/todos')
     .then(r => r.json())
     .then(todos => {
       if (todos.length === 0) todoEl.textContent = 'No todos.';
       todoEl.innerHTML = todos.map(t => `<div class="list-item">• ${t}</div>`).join('');
     })
     .catch(() => { todoEl.textContent = 'Unable to load todos.'; });
+
+  // Logs viewer
+  const logsEl = document.getElementById('logsContent');
+  if (logsEl) {
+    const allLines = [...(d.logs?.dispatcher || []), ...[].concat(d.logs?.cron_errors || [])];
+    logsEl.innerHTML = allLines.map(l => {
+      let cls = '';
+      if (/ERROR|FAIL|Exception|Traceback/.test(l)) cls = 'log-error';
+      else if (/WARN|WARNING|warn/.test(l)) cls = 'log-warn';
+      return `<span class="log-line ${cls}">${l}</span>`;
+    }).join('\n');
+    logsEl.scrollTop = logsEl.scrollHeight;
+  }
 }
+
+function toggleLogs() {
+  const panel = document.getElementById('logsPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+document.getElementById('closeLogs')?.addEventListener('click', () => {
+  document.getElementById('logsPanel').style.display = 'none';
+});
 
 function runCmd(cmd) {
   fetch(`/api/run?cmd=${cmd}`).then(r => r.json()).then(d => {
     if (d.status === 'started') alert(`${cmd} started`);
     else alert(`Error: ${d.error||'unknown'}`);
   });
-}
-
-function openLogs() {
-  window.open('/logs/dispatcher.log', '_blank');
 }
 
 setInterval(load, 60000);
