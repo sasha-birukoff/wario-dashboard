@@ -8,38 +8,67 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Wario Dashboard</h1>
+    <div class="brand">
+      <span class="icon">👑</span>
+      <h1>Wario</h1>
+      <span class="subtitle">Life Agent</span>
+    </div>
     <button id="themeToggle" aria-label="Toggle dark mode">🌙</button>
   </header>
 
-  <main class="grid">
-    <!-- Cron Health -->
-    <section class="card" id="cronHealth">
-      <h2>Cron Health</h2>
-      <div class="loading">Loading...</div>
+  <main class="container">
+    <!-- Stats row -->
+    <section class="stats-row" id="statsRow">
+      <div class="stat-card">
+        <div class="stat-label">Cron Health</div>
+        <div class="stat-value" id="statCron">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Dispatcher TODO</div>
+        <div class="stat-value" id="statQueue">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Git Commits Today</div>
+        <div class="stat-value" id="statCommits">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Memory Files</div>
+        <div class="stat-value" id="statMemory">–</div>
+      </div>
     </section>
 
-    <!-- Dispatcher Queue -->
-    <section class="card" id="queueStatus">
-      <h2>Queue</h2>
-      <div class="loading">Loading...</div>
+    <!-- Quick Actions -->
+    <section class="actions-row">
+      <button onclick="runCmd('memory_sync')">Sync Memory</button>
+      <button onclick="runCmd('daily_digest')">Send Daily Digest</button>
+      <button onclick="runCmd('restart_dispatcher')">Restart Dispatcher</button>
+      <button onclick="openLogs()">Open Logs</button>
     </section>
 
-    <!-- Recent Logs -->
-    <section class="card logview">
-      <h2>Logs</h2>
-      <div class="loading">Loading...</div>
-    </section>
+    <!-- Two-column content -->
+    <div class="grid-2col">
+      <!-- Dispatcher Queue -->
+      <section class="panel">
+        <h2>Dispatcher Queue</h2>
+        <div id="queueContent" class="list-content">Loading…</div>
+      </section>
 
-    <!-- System Info -->
-    <section class="card" id="systemInfo">
-      <h2>System</h2>
-      <div class="loading">Loading...</div>
+      <!-- Cron Health -->
+      <section class="panel">
+        <h2>Cron Health</h2>
+        <div id="cronContent" class="list-content">Loading…</div>
+      </section>
+    </div>
+
+    <!-- To-Do List from MEMORY (todo tag) -->
+    <section class="panel">
+      <h2>To‑Do List</h2>
+      <div id="todoContent" class="list-content">Loading…</div>
     </section>
   </main>
 
   <footer>
-    <small>Data: localhost only | Refresh: <span id="lastUpdate">–</span></small>
+    <small>Last update: <span id="lastUpdate">–</span></small>
   </footer>
 
   <script src="app.js"></script>
