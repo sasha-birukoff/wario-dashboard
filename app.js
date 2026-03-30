@@ -71,16 +71,26 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Render queue with checkboxes
+// Effort classification from title text
+function classifyEffort(title) {
+  const t = title.toLowerCase();
+  if (/\b(quick|simple|fast|rapid|short|tiny)\b/.test(t)) return 'quick';
+  if (/\b(medium|moderate|average|regular)\b/.test(t)) return 'medium';
+  if (/\b(long|complex|extensive|heavy|big|large|time-consuming)\b/.test(t)) return 'long';
+  return null;
+}
+
+// Render queue with effort badges and search filter
 function renderQueue(items) {
+  const filter = document.getElementById('queueSearch').value.toLowerCase();
   const qEl = document.getElementById('queueContent');
-  if (items.length === 0) {
+  const filtered = items.filter(it => it.title.toLowerCase().includes(filter));
+  if (filtered.length === 0) {
     qEl.textContent = 'No queue items.';
     return;
   }
-  qEl.innerHTML = items.map(it => {
+  qEl.innerHTML = filtered.map(it => {
     const isDone = it.status === 'DONE';
-    const checkbox = `<input type="checkbox" class="queue-check" data-title="${escapeHtml(it.title)}" ${isDone ? 'checked' : ''}>`;
     let icon = '';
     let style = '';
     if (it.status === 'TODO') {
@@ -91,27 +101,10 @@ function renderQueue(items) {
       icon = '✓'; style = 'color:var(--success)';
     }
     const doneAttr = isDone ? 'done="true"' : '';
-    return `<div class="list-item" ${doneAttr}>${checkbox}<span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span></div>`;
+    const effort = classifyEffort(it.title);
+    const badge = effort ? `<span class="effort-badge effort-${effort}">${effort}</span>` : '';
+    return `<div class="list-item" ${doneAttr}><span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span>${badge}</div>`;
   }).join('');
-
-  // Attach change listeners to checkboxes
-  document.querySelectorAll('#queueContent .queue-check').forEach(cb => {
-    cb.addEventListener('change', async (e) => {
-      const title = e.target.dataset.title;
-      const newStatus = e.target.checked ? 'DONE' : 'TODO';
-      try {
-        await fetch('/api/queue/update', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({title, newStatus})
-        });
-        reloadQueue();
-      } catch (err) {
-        console.error(err);
-        e.target.checked = !e.target.checked; // revert
-      }
-    });
-  });
 }
 
 function loadQueue() {
@@ -120,6 +113,9 @@ function loadQueue() {
     .then(items => renderQueue(items))
     .catch(() => { document.getElementById('queueContent').textContent = 'Failed to load queue.'; });
 }
+
+// Search filter listener
+document.getElementById('queueSearch')?.addEventListener('input', () => loadQueue());
 
 // Confetti
 let confettiCanvas = null, confettiCtx = null;

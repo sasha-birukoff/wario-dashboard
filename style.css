@@ -172,6 +172,20 @@ button#themeToggle {
 .list-item:last-child { border-bottom: none; }
 .status-icon { width: 20px; margin-right: 0.6rem; font-weight: bold; text-align: center; }
 .list-item[done="true"] span:last-child { text-decoration: line-through; color: var(--muted); }
+.effort-badge {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: var(--muted);
+  color: var(--bg);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.effort-quick { background: #22c55e; }
+.effort-medium { background: #3b82f6; }
+.effort-long { background: #f59e0b; }
+
 .time-ago { margin-left: auto; color: var(--muted); font-size: 0.8rem; }
 
 footer { text-align: center; padding: 1rem; color: var(--muted); font-size: 0.85rem; }
