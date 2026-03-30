@@ -206,6 +206,25 @@ footer { text-align: center; padding: 1rem; color: var(--muted); font-size: 0.85
 .log-error { color: #ef4444; }
 .log-warn { color: #f59e0b; }
 
+/* Tooltip */
+.tooltip-trigger { position: relative; cursor: help; }
+.tooltip-popup {
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  z-index: 100;
+  box-shadow: var(--shadow);
+  display: none;
+}
+.tooltip-trigger:hover .tooltip-popup { display: block; }
+
 /* Modal */
 .modal {
   position: fixed; top:0; left:0; right:0; bottom:0;
