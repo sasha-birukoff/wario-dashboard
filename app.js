@@ -111,7 +111,20 @@ function classifyEffort(title) {
 function renderQueue(items) {
   const filter = document.getElementById('queueSearch').value.toLowerCase();
   const qEl = document.getElementById('queueContent');
-  const filtered = items.filter(it => it.title.toLowerCase().includes(filter));
+  let filtered = items.filter(it => it.title.toLowerCase().includes(filter));
+  // Apply saved order if exists
+  const savedOrder = localStorage.getItem('queueOrder');
+  if (savedOrder) {
+    const orderSet = new Set(savedOrder.split('|'));
+    filtered.sort((a, b) => {
+      const aIn = orderSet.has(a.title) ? 1 : 0;
+      const bIn = orderSet.has(b.title) ? 1 : 0;
+      if (!aIn && !bIn) return 0;
+      if (aIn && !bIn) return 1;
+      if (!aIn && bIn) return -1;
+      return savedOrder.indexOf(a.title) - savedOrder.indexOf(b.title);
+    });
+  }
   if (filtered.length === 0) {
     qEl.textContent = 'No queue items.';
     return;
@@ -131,7 +144,7 @@ function renderQueue(items) {
     const effort = classifyEffort(it.title);
     const badge = effort ? `<span class="effort-badge effort-${effort}">${effort}</span>` : '';
     const isChecked = selectedTitles.has(it.title) ? 'checked' : '';
-    return `<div class="list-item" data-title="${escapeHtml(it.title)}" ${doneAttr}>
+    return `<div class="list-item" data-title="${escapeHtml(it.title)}" draggable="true" ${doneAttr}>
       <input type="checkbox" class="bulk-check" ${isChecked} data-title="${escapeHtml(it.title)}" style="margin-right:0.5rem;">
       <span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span>${badge}
     </div>`;
@@ -159,6 +172,41 @@ function renderQueue(items) {
       cb.checked = selectedTitles.has(title);
       item.classList.toggle('selected', selectedTitles.has(title));
     }
+  });
+
+  // Drag and drop handlers
+  let dragSrcEl = null;
+  const items = document.querySelectorAll('#queueContent .list-item');
+  items.forEach(item => {
+    item.addEventListener('dragstart', (e) => {
+      dragSrcEl = item;
+      e.dataTransfer.effectAllowed = 'move';
+      item.classList.add('dragging');
+    });
+    item.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const target = e.target.closest('.list-item');
+      if (target && target !== dragSrcEl) {
+        const rect = target.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        if (e.clientY < midpoint) {
+          target.before(dragSrcEl);
+        } else {
+          target.after(dragSrcEl);
+        }
+      }
+    });
+    item.addEventListener('drop', (e) => {
+      e.preventDefault();
+      // Save new order to localStorage
+      const all = Array.from(document.querySelectorAll('#queueContent .list-item')).map(li => li.dataset.title);
+      localStorage.setItem('queueOrder', all.join('|'));
+      item.classList.remove('dragging');
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+    });
   });
 }
 
