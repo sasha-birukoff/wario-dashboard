@@ -29,9 +29,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def handle_api_status(self):
         try:
-            r = subprocess.run(["openclaw", "cron", "list", "--json"], capture_output=True, text=True, timeout=5)
-            cron = json.loads(r.stdout) if r.returncode == 0 else {"jobs": []}
-        except:
+            cron_file = WORKSPACE / ".openclaw" / "cron.json"
+            if cron_file.exists():
+                cron = json.loads(cron_file.read_text())
+            else:
+                cron = {"jobs": []}
+        except Exception as e:
+            print(f"[WARN] cron file read failed: {e}")
             cron = {"jobs": []}
         data = self.get_status()
         self.send_response(200)
@@ -45,7 +49,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         allowed = {
             "memory_sync": "bash ~/.openclaw/workspace/skills/memory-discipline/scripts/memory_sync.sh",
             "daily_digest": "bash ~/.openclaw/workspace/skills/monitoring/scripts/daily_status_report.py",
-            "restart_dispatcher": 'crontab -l | grep -v "dispatcher" | crontab - ; openclaw cron add --name "Upgrade Dispatcher" --cron "*/15 * * * *" --tz "America/Los_Angeles" --session isolated --timeout-seconds 120 --message "bash ~/.openclaw/workspace/dispatch/dispatcher.sh"',
+            "restart_dispatcher": 'crontab -l | grep -v "dispatcher" | crontab - ; /opt/homebrew/bin/openclaw cron add --name "Upgrade Dispatcher" --cron "*/15 * * * *" --tz "America/Los_Angeles" --session isolated --timeout-seconds 120 --message "bash ~/.openclaw/workspace/dispatch/dispatcher.sh"',
         }
         if cmd not in allowed:
             self.send_response(400); self.end_headers(); self.wfile.write(b'{"error":"unknown command"}'); return
@@ -121,9 +125,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def handle_api_health(self):
         # Check cron jobs succeeded today
         try:
-            r = subprocess.run(["openclaw", "cron", "list", "--json"], capture_output=True, text=True, timeout=5)
-            cron = json.loads(r.stdout) if r.returncode == 0 else {"jobs": []}
-        except:
+            cron_file = WORKSPACE / ".openclaw" / "cron.json"
+            if cron_file.exists():
+                cron = json.loads(cron_file.read_text())
+            else:
+                cron = {"jobs": []}
+        except Exception as e:
+            print(f"[WARN] cron file read failed: {e}")
             cron = {"jobs": []}
         now_ms = int(datetime.datetime.now().timestamp() * 1000)
         one_day_ms = 24 * 60 * 60 * 1000
