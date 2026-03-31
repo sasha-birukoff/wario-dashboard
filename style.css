@@ -172,6 +172,7 @@ button#themeToggle {
 .list-item:last-child { border-bottom: none; }
 .status-icon { width: 20px; margin-right: 0.6rem; font-weight: bold; text-align: center; }
 .list-item[done="true"] span:last-child { text-decoration: line-through; color: var(--muted); }
+.list-item.selected { background: rgba(59, 130, 246, 0.15); border-left: 3px solid var(--accent); }
 .effort-badge {
   margin-left: 0.5rem;
   font-size: 0.7rem;

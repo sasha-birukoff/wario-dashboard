@@ -26,6 +26,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'r' || e.key === 'R') load();
   if (e.key === 't' || e.key === 'T') applyTheme(currentThemeIdx + 1);
   if (e.key === 'Escape') closeHelp();
+  // Queue navigation: j/k
+  if (e.key === 'j' || e.key === 'J') { e.preventDefault(); selectNext(); }
+  if (e.key === 'k' || e.key === 'K') { e.preventDefault(); selectPrev(); }
 });
 
 // Toggle logs visibility
@@ -36,6 +39,18 @@ function toggleLogs() {
 document.getElementById('closeLogs')?.addEventListener('click', () => {
   document.getElementById('logsPanel').style.display = 'none';
 });
+
+// Queue navigation
+let selectedIndex = -1;
+function selectQueueItem(idx) {
+  const items = document.querySelectorAll('#queueContent .list-item');
+  if (items.length === 0) { selectedIndex = -1; return; }
+  selectedIndex = (idx + items.length) % items.length;
+  items.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
+  if (selectedIndex >= 0) items[selectedIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function selectNext() { const items = document.querySelectorAll('#queueContent .list-item'); if (items.length) selectQueueItem((selectedIndex + 1) % items.length); }
+function selectPrev() { const items = document.querySelectorAll('#queueContent .list-item'); if (items.length) selectQueueItem(selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1); }
 
 // Run command via API
 function runCmd(cmd) {
