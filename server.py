@@ -18,6 +18,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.handle_api_todos()
         elif self.path == "/api/queue":
             self.handle_api_queue()
+        elif self.path == "/api/queue/tag":
+            self.handle_api_queue_tag()
         elif self.path == "/api/health":
             self.handle_api_health()
         elif self.path.startswith("/api/run?"):
@@ -78,6 +80,43 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 title = line[len(prefix):].strip()
                 items.append({"status": prefix, "title": title})
         self.send_response(200); self.end_headers(); self.wfile.write(json.dumps(items).encode())
+
+    def handle_api_queue_tag(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length)
+        try:
+            data = json.loads(post_data)
+            title = data.get('title')
+            tag = data.get('tag')
+            if not title or not tag:
+                self.send_response(400); self.end_headers(); return
+            queue_file = WORKSPACE / "dispatch" / "upgrade_queue.txt"
+            if not queue_file.exists():
+                self.send_response(404); self.end_headers(); return
+            lines = queue_file.read_text().splitlines()
+            new_lines = []
+            changed = False
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith(('TODO','DOING','DONE')):
+                    prefix = stripped.split()[0]
+                    rest = stripped[len(prefix):].strip()
+                    if rest == title:
+                        # Avoid double-tagging
+                        if f"[{tag}]" not in rest:
+                            new_lines.append(f"{prefix} {rest} [{tag}]")
+                            changed = True
+                        else:
+                            new_lines.append(line)
+                    else:
+                        new_lines.append(line)
+                else:
+                    new_lines.append(line)
+            if changed:
+                queue_file.write_text('\n'.join(new_lines) + '\n')
+            self.send_response(200); self.end_headers(); self.wfile.write(json.dumps({"ok":changed}).encode())
+        except Exception as e:
+            self.send_response(500); self.end_headers(); self.wfile.write(json.dumps({"error": str(e)}).encode())
 
     def handle_api_health(self):
         # Check cron jobs succeeded today

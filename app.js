@@ -1,5 +1,8 @@
 const API = '/api/status';
 
+// Selection state for bulk operations
+const selectedTitles = new Set();
+
 // Theme handling
 const themes = ['dark', 'light', 'solarized-dark', 'nord', 'catppuccin'];
 let currentThemeIdx = themes.indexOf(localStorage.getItem('theme'));
@@ -46,7 +49,16 @@ function selectQueueItem(idx) {
   const items = document.querySelectorAll('#queueContent .list-item');
   if (items.length === 0) { selectedIndex = -1; return; }
   selectedIndex = (idx + items.length) % items.length;
-  items.forEach((item, i) => item.classList.toggle('selected', i === selectedIndex));
+  items.forEach((item, i) => {
+    const isSel = i === selectedIndex;
+    item.classList.toggle('selected', isSel);
+    const cb = item.querySelector('.bulk-check');
+    if (cb) {
+      cb.checked = isSel;
+      if (isSel) selectedTitles.add(item.dataset.title);
+      else selectedTitles.delete(item.dataset.title);
+    }
+  });
   if (selectedIndex >= 0) items[selectedIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 function selectNext() { const items = document.querySelectorAll('#queueContent .list-item'); if (items.length) selectQueueItem((selectedIndex + 1) % items.length); }
@@ -118,8 +130,36 @@ function renderQueue(items) {
     const doneAttr = isDone ? 'done="true"' : '';
     const effort = classifyEffort(it.title);
     const badge = effort ? `<span class="effort-badge effort-${effort}">${effort}</span>` : '';
-    return `<div class="list-item" ${doneAttr}><span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span>${badge}</div>`;
+    const isChecked = selectedTitles.has(it.title) ? 'checked' : '';
+    return `<div class="list-item" data-title="${escapeHtml(it.title)}" ${doneAttr}>
+      <input type="checkbox" class="bulk-check" ${isChecked} data-title="${escapeHtml(it.title)}" style="margin-right:0.5rem;">
+      <span class="status-icon" style="${style}">${icon}</span><span>${it.title}</span>${badge}
+    </div>`;
   }).join('');
+
+  // Attach change listeners to checkboxes for selection
+  document.querySelectorAll('#queueContent .bulk-check').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const title = e.target.dataset.title;
+      if (e.target.checked) {
+        selectedTitles.add(title);
+        e.target.closest('.list-item').classList.add('selected');
+      } else {
+        selectedTitles.delete(title);
+        e.target.closest('.list-item').classList.remove('selected');
+      }
+    });
+  });
+
+  // Sync checkboxes with selection set (from keyboard nav)
+  document.querySelectorAll('#queueContent .list-item').forEach(item => {
+    const title = item.dataset.title;
+    const cb = item.querySelector('.bulk-check');
+    if (cb) {
+      cb.checked = selectedTitles.has(title);
+      item.classList.toggle('selected', selectedTitles.has(title));
+    }
+  });
 }
 
 function loadQueue() {
@@ -131,6 +171,57 @@ function loadQueue() {
 
 // Search filter listener
 document.getElementById('queueSearch')?.addEventListener('input', () => loadQueue());
+
+// Bulk actions
+document.getElementById('selectAll')?.addEventListener('change', (e) => {
+  const checkboxes = document.querySelectorAll('#queueContent .bulk-check');
+  checkboxes.forEach(cb => {
+    cb.checked = e.target.checked;
+    const title = cb.dataset.title;
+    if (e.target.checked) {
+      selectedTitles.add(title);
+      cb.closest('.list-item').classList.add('selected');
+    } else {
+      selectedTitles.delete(title);
+      cb.closest('.list-item').classList.remove('selected');
+    }
+  });
+});
+
+document.getElementById('tagSelect')?.addEventListener('change', async (e) => {
+  const tag = e.target.value;
+  if (!tag) return;
+  if (tag === 'custom') {
+    const custom = prompt('Enter custom tag:');
+    if (!custom) return;
+    await applyTag(custom);
+  } else {
+    await applyTag(tag);
+  }
+  e.target.value = '';
+});
+
+async function applyTag(tag) {
+  for (const title of selectedTitles) {
+    try {
+      await fetch('/api/queue/tag', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, tag})
+      });
+    } catch (err) {
+      console.error('Tag failed for', title, err);
+    }
+  }
+  // Refresh
+  loadQueue();
+}
+
+function clearSelection() {
+  selectedTitles.clear();
+  document.querySelectorAll('#queueContent .bulk-check').forEach(cb => { cb.checked = false; });
+  document.querySelectorAll('#queueContent .list-item').forEach(item => item.classList.remove('selected'));
+}
 
 // Confetti
 let confettiCanvas = null, confettiCtx = null;

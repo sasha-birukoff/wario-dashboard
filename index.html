@@ -66,6 +66,19 @@
             background:var(--bg); color:var(--text); border:1px solid var(--border);
             border-radius:6px; padding:0.3rem 0.6rem; font-size:0.85rem; width:50%; max-width:200px;">
         </div>
+        <div class="bulk-actions" style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.8rem;">
+          <label style="font-size:0.85rem; display:flex; align-items:center; gap:0.3rem;">
+            <input type="checkbox" id="selectAll"> Select All
+          </label>
+          <select id="tagSelect" style="background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px; padding:0.2rem 0.5rem; font-size:0.85rem;">
+            <option value="">Tag selected…</option>
+            <option value="quick">quick</option>
+            <option value="medium">medium</option>
+            <option value="long">long</option>
+            <option value="custom">custom…</option>
+          </select>
+          <button onclick="clearSelection()" style="background:none; border:1px solid var(--border); border-radius:4px; padding:0.2rem 0.5rem; font-size:0.85rem;">Clear</button>
+        </div>
         <div id="queueContent" class="list-content">Loading…</div>
       </section>
 
