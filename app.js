@@ -186,8 +186,8 @@ function renderQueue(items) {
 
   // Drag and drop handlers
   let dragSrcEl = null;
-  const items = document.querySelectorAll('#queueContent .list-item');
-  items.forEach(item => {
+  const draggableItems = document.querySelectorAll('#queueContent .list-item');
+  draggableItems.forEach(item => {
     item.addEventListener('dragstart', (e) => {
       dragSrcEl = item;
       e.dataTransfer.effectAllowed = 'move';
