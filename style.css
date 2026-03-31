@@ -173,6 +173,8 @@ button#themeToggle {
 .list-item.dragging { opacity: 0.5; background: rgba(59, 130, 246, 0.1); }
 .status-icon { width: 20px; margin-right: 0.6rem; font-weight: bold; text-align: center; }
 .list-item[done="true"] span:last-child { text-decoration: line-through; color: var(--muted); }
+.timer-btn { cursor: pointer; }
+.timer-btn:active { transform: scale(0.98); }
 body.focus-mode .list-item:not(.selected) { opacity: 0.3; }
 .list-item.selected { background: rgba(59, 130, 246, 0.15); border-left: 3px solid var(--accent); }
 .effort-badge {

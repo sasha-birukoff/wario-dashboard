@@ -108,6 +108,67 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Format milliseconds to MM:SS
+function formatMs(ms) {
+  if (!ms) ms = 0;
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Timer management
+const activeTimers = {}; // title -> interval ID
+
+function startTimer(title) {
+  if (activeTimers[title]) return; // already running
+  const key = `timer_${encodeURIComponent(title)}`;
+  const stored = JSON.parse(localStorage.getItem(key) || '{}');
+  const startTime = Date.now() - (stored.elapsed || 0);
+  const interval = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const el = document.querySelector(`.timer-elapsed[data-title="${escapeHtml(title)}"]`);
+    if (el) el.textContent = formatMs(elapsed);
+  }, 1000);
+  activeTimers[title] = { interval, startTime };
+  // Persist running state
+  localStorage.setItem(key, JSON.stringify({ start: startTime }));
+  // Update button to pause symbol
+  const btn = document.querySelector(`.timer-btn[data-title="${escapeHtml(title)}"]`);
+  if (btn) btn.textContent = '⏸';
+}
+
+function stopTimer(title) {
+  const rec = activeTimers[title];
+  if (!rec) return;
+  clearInterval(rec.interval);
+  delete activeTimers[title];
+  const elapsed = Date.now() - rec.startTime;
+  const key = `timer_${encodeURIComponent(title)}`;
+  localStorage.setItem(key, JSON.stringify({ elapsed }));
+  // Update button to play symbol
+  const btn = document.querySelector(`.timer-btn[data-title="${escapeHtml(title)}"]`);
+  if (btn) btn.textContent = '▶';
+  // Update elapsed display
+  const el = document.querySelector(`.timer-elapsed[data-title="${escapeHtml(title)}"]`);
+  if (el) el.textContent = formatMs(elapsed);
+}
+
+// On page load, set up timer buttons and restore elapsed values (but not auto-start)
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelector('#queueContent')?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('timer-btn')) {
+      const title = e.target.dataset.title;
+      const isRunning = e.target.textContent === '⏸';
+      if (isRunning) {
+        stopTimer(title);
+      } else {
+        startTimer(title);
+      }
+    }
+  });
+});
+
 // Effort classification from title text
 function classifyEffort(title) {
   const t = title.toLowerCase();
@@ -223,8 +284,25 @@ function renderQueue(items) {
 function loadQueue() {
   fetch('/api/queue')
     .then(r => r.json())
-    .then(items => renderQueue(items))
+    .then(items => { renderQueue(items); restoreTimers(); })
     .catch(() => { document.getElementById('queueContent').textContent = 'Failed to load queue.'; });
+}
+
+// Restore timer UI from localStorage (buttons and elapsed spans)
+function restoreTimers() {
+  document.querySelectorAll('#queueContent .timer-btn').forEach(btn => {
+    const title = btn.dataset.title;
+    const key = `timer_${encodeURIComponent(title)}`;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    // If there's a start but no elapsed, it was running; we show paused to avoid auto-start
+    btn.textContent = (stored.start && !stored.elapsed) ? '▶' : '▶';
+  });
+  document.querySelectorAll('#queueContent .timer-elapsed').forEach(el => {
+    const title = el.dataset.title;
+    const key = `timer_${encodeURIComponent(title)}`;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    el.textContent = formatMs(stored.elapsed || 0);
+  });
 }
 
 // Search filter listener
