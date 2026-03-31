@@ -18,6 +18,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.handle_api_todos()
         elif self.path == "/api/queue":
             self.handle_api_queue()
+        elif self.path == "/api/health":
+            self.handle_api_health()
         elif self.path.startswith("/api/run?"):
             self.handle_api_run()
         else:
@@ -76,6 +78,61 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 title = line[len(prefix):].strip()
                 items.append({"status": prefix, "title": title})
         self.send_response(200); self.end_headers(); self.wfile.write(json.dumps(items).encode())
+
+    def handle_api_health(self):
+        # Check cron jobs succeeded today
+        try:
+            r = subprocess.run(["openclaw", "cron", "list", "--json"], capture_output=True, text=True, timeout=5)
+            cron = json.loads(r.stdout) if r.returncode == 0 else {"jobs": []}
+        except:
+            cron = {"jobs": []}
+        now_ms = int(datetime.datetime.now().timestamp() * 1000)
+        one_day_ms = 24 * 60 * 60 * 1000
+        cron_fail = False
+        for job in cron.get("jobs", []):
+            last_run_ms = job.get("state", {}).get("lastRunAtMs", 0)
+            status = job.get("state", {}).get("lastRunStatus", "")
+            if now_ms - last_run_ms < one_day_ms and status != "ok":
+                cron_fail = True
+                break
+        # Queue load
+        queue_file = WORKSPACE / "dispatch" / "upgrade_queue.txt"
+        todo_count = 0
+        if queue_file.exists():
+            for line in queue_file.read_text().splitlines():
+                if line.strip().startswith("TODO"):
+                    todo_count += 1
+        # Memory files today
+        mem_dir = WORKSPACE / "memory"
+        today_str = datetime.datetime.now().strftime("%Y-%m-%d.md")
+        mem_today = 1 if (mem_dir / today_str).exists() else 0
+        # Determine overall status
+        if cron_fail:
+            status = "fail"
+            message = "Critical cron job failure in last 24h"
+        elif todo_count >= 50:
+            status = "degraded"
+            message = f"High queue TODO count: {todo_count}"
+        elif mem_today == 0:
+            status = "degraded"
+            message = "No memory file created today"
+        else:
+            status = "ok"
+            message = "All systems nominal"
+        resp = {
+            "status": status,
+            "message": message,
+            "details": {
+                "cron_fail": cron_fail,
+                "queue_todo": todo_count,
+                "memory_files_today": mem_today,
+                "checked_at": datetime.datetime.now().isoformat()
+            }
+        }
+        self.send_response(200)
+        self.send_header("Content-type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(resp).encode())
 
     def get_status(self):
         try:
