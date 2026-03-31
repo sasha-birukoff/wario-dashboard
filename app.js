@@ -336,6 +336,38 @@ function renderStatus(d) {
   document.getElementById('statMemory').textContent = d.memory_daily_files || 0;
   document.getElementById('statCommits').textContent = d.git_last_commit ? '1' : '0';
   document.getElementById('statHealth').textContent = d.health_score !== undefined ? d.health_score + '%' : '—';
+  renderSparkline(d.health_score);
+}
+
+// Simple 7‑day sparkline (mock trend: generate around current health_score)
+function renderSparkline(currentHealth) {
+  const container = document.getElementById('sparkline-container');
+  if (!container) return;
+  const points = [];
+  const w = container.clientWidth || 300;
+  const h = 40;
+  const pad = 4;
+  const innerW = w - 2*pad;
+  const innerH = h - 2*pad;
+  // Mock: start 7 days ago, slight random walk ending near currentHealth
+  let val = Math.max(0, Math.min(100, currentHealth + (Math.random()*20-10)));
+  const values = [];
+  for (let i = 0; i < 7; i++) {
+    values.unshift(val);
+    val = Math.max(0, Math.min(100, val + (Math.random()*10-5)));
+  }
+  const maxVal = 100;
+  const minVal = 0;
+  points.push(...values.map((v, i) => {
+    const x = pad + (i / (values.length-1)) * innerW;
+    const y = pad + innerH - ((v - minVal) / (maxVal - minVal)) * innerH;
+    return `${x},${y}`;
+  }));
+  const poly = points.join(' ');
+  container.innerHTML = `
+    <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+      <polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${poly}" />
+    </svg>`;
 }
 
 function renderCron(jobs) {
