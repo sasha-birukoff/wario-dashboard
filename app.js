@@ -43,6 +43,16 @@ document.getElementById('closeLogs')?.addEventListener('click', () => {
   document.getElementById('logsPanel').style.display = 'none';
 });
 
+// Focus mode toggle
+document.getElementById('focusToggle')?.addEventListener('click', () => {
+  document.body.classList.toggle('focus-mode');
+  localStorage.setItem('focusMode', document.body.classList.contains('focus-mode'));
+});
+// Restore focus mode preference
+if (localStorage.getItem('focusMode') === 'true') {
+  document.body.classList.add('focus-mode');
+}
+
 // Queue navigation
 let selectedIndex = -1;
 function selectQueueItem(idx) {
